@@ -1,0 +1,108 @@
+# ================================
+# EC2 SETUP
+# ================================
+
+sudo apt update
+sudo apt install docker.io -y
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# (Optional: To avoid the sudo)
+sudo usermod -aG docker ubuntu
+newgrp docker
+
+
+# ================================
+# AWS CLI INSTALL
+# ================================
+
+sudo apt install unzip -y
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+
+aws --version
+
+
+# ================================
+# AWS CONFIGURE
+# ================================
+
+aws configure
+# Enter:
+# Access Key
+# Secret Key
+# Region (e.g. us-east-1)
+# Output format (json)
+
+
+# ================================
+# DOCKER BUILD
+# ================================
+
+docker build -t secure-app .
+
+
+# ================================
+# ECR LOGIN
+# ================================
+
+aws ecr get-login-password --region us-east-1 | \
+docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
+
+
+# ================================
+# TAG IMAGES (MULTIPLE VERSIONS)
+# ================================
+
+docker tag secure-app:latest <repo-url>:v1
+docker tag secure-app:latest <repo-url>:v2
+docker tag secure-app:latest <repo-url>:v3
+docker tag secure-app:latest <repo-url>:v4
+docker tag secure-app:latest <repo-url>:v5
+docker tag secure-app:latest <repo-url>:latest
+
+
+# ================================
+# PUSH IMAGES
+# ================================
+
+docker push <repo-url>:v1
+docker push <repo-url>:v2
+docker push <repo-url>:v3
+docker push <repo-url>:v4
+docker push <repo-url>:v5
+docker push <repo-url>:latest
+
+
+# ================================
+# VERIFY IMAGES
+# ================================
+
+docker images
+
+
+# ================================
+# LIFECYCLE POLICY APPLY (CLI)
+# ================================
+
+aws ecr put-lifecycle-policy \
+  --repository-name my-secure-repo \
+  --lifecycle-policy-text file://policies/lifecycle-policy.json
+
+# ================================
+# SECURITY TEST (UNAUTHORIZED)
+# ================================
+
+# Try push/pull using user without permission
+docker pull <repo-url>:latest
+
+# Expected: Access Denied
+
+
+# ================================
+# CLEANUP (OPTIONAL)
+# ================================
+
+docker rmi secure-app
+docker system prune -f
